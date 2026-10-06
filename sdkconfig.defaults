@@ -1,0 +1,8 @@
+# Keep sockets and TLS buffers small enough that the local dashboard
+# can still accept a browser after the board has been up for a while.
+CONFIG_LWIP_MAX_SOCKETS=16
+CONFIG_LWIP_SO_LINGER=y
+CONFIG_LWIP_MAX_ACTIVE_TCP=24
+CONFIG_LWIP_TCP_MSL=10000
+CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN=8192
+CONFIG_MBEDTLS_DYNAMIC_BUFFER=y

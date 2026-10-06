@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0c1220">
+<title>Sensor Cloud</title>
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 20px 16px 36px;
+  color: #e7eef8;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background:
+    radial-gradient(1000px 420px at 0% -10%, rgba(45, 212, 191, 0.16), transparent 55%),
+    radial-gradient(820px 380px at 100% 0%, rgba(251, 191, 36, 0.12), transparent 48%),
+    #0c1220;
+}
+.wrap { max-width: 980px; margin: 0 auto; }
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.brand { display: flex; gap: 12px; align-items: center; }
+.mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #2dd4bf, #0284c7);
+  box-shadow: 0 8px 22px rgba(14, 165, 233, 0.35);
+}
+h1 { margin: 0; font-size: 1.35rem; letter-spacing: -0.03em; }
+#subtitle { margin: 3px 0 0; color: #93a4bd; font-size: 0.88rem; }
+.status-row { display: flex; gap: 8px; align-items: center; }
+button, .pill {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.live { cursor: pointer; background: #1e293b; color: #9fb0c9; }
+.live.on { background: #134e4a; color: #99f6e4; }
+.live.on::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: #2dd4bf;
+  box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.7);
+  animation: pulse 1.6s infinite;
+}
+.pill { background: #1e293b; color: #cbd5e1; }
+.pill.ok { background: #064e3b; color: #a7f3d0; }
+.pill.bad { background: #4c0519; color: #fecdd3; }
+.banner {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #3f1d24;
+  color: #fecdd3;
+}
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.panel, .detail, .deltas article {
+  background: rgba(16, 24, 42, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+}
+.panel { padding: 16px; }
+.panel.bme { border-top: 3px solid #2dd4bf; }
+.panel.bmp { border-top: 3px solid #fbbf24; }
+.panel-head, .detail-head, .tile-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.panel h2, .detail h2 { margin: 0; font-size: 1.02rem; }
+.age, .note, .hint, #detailMeta, .k, .comfort, .deltas span, .deltas em {
+  color: #93a4bd;
+}
+.age, .note, .comfort, .deltas span, .deltas em { font-size: 0.78rem; }
+.note { margin: 10px 2px 0; }
+.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.tile {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  background: #0e1628;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 12px;
+}
+.tile.wide { grid-column: 1 / -1; }
+.tile.active {
+  border-color: rgba(45, 212, 191, 0.85);
+  box-shadow: inset 0 0 0 1px rgba(45, 212, 191, 0.35);
+}
+.panel.bmp .tile.active {
+  border-color: rgba(251, 191, 36, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.35);
+}
+.tile:focus-visible { outline: 2px solid #5eead4; outline-offset: 2px; }
+.k { letter-spacing: 0.04em; text-transform: uppercase; }
+.v { display: flex; align-items: baseline; gap: 4px; margin-top: 4px; }
+.num {
+  font-size: 1.7rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.num.cool { color: #7dd3fc; }
+.num.warm { color: #fb923c; }
+.num.tick { animation: flash 0.45s ease; }
+small { color: #93a4bd; font-size: 0.78rem; font-weight: 700; }
+.trend { font-size: 0.72rem; color: #94a3b8; }
+.trend.up { color: #34d399; }
+.trend.down { color: #fb7185; }
+.spark { width: 100%; height: 32px; margin-top: 6px; display: block; }
+.panel.bme .spark { color: #2dd4bf; }
+.panel.bmp .spark { color: #fbbf24; }
+.tile[data-key="bme.pressure"] .spark { color: #38bdf8; }
+.tile[data-key="bme.humidity"] .spark { color: #a78bfa; }
+.tile[data-key="bmp.pressure"] .spark { color: #fb7185; }
+.spark polyline {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.meter {
+  height: 8px;
+  margin-top: 8px;
+  background: #1e293b;
+  border-radius: 99px;
+  overflow: hidden;
+}
+.meter > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #38bdf8, #2dd4bf);
+  transition: width 0.4s ease;
+}
+.deltas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 14px 0;
+}
+.deltas article { padding: 12px 14px; }
+.deltas strong {
+  display: block;
+  margin: 4px 0;
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+.deltas em { font-style: normal; }
+.detail { padding: 16px; }
+#detailValue { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+#detailMeta { margin: 4px 0 0; font-size: 0.8rem; }
+.chart-wrap { position: relative; height: 230px; margin-top: 8px; }
+canvas { width: 100%; height: 100%; display: block; touch-action: pan-y; }
+.tip {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  transform: translate(-50%, -120%);
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #0b1220;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.hint { margin: 10px 0 0; font-size: 0.78rem; }
+@keyframes pulse {
+  70% { box-shadow: 0 0 0 8px rgba(45, 212, 191, 0); }
+}
+@keyframes flash {
+  from { color: #fff; }
+}
+@media (max-width: 800px) {
+  .grid, .deltas { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="mark" aria-hidden="true"></div>
+      <div>
+        <h1>Sensor Cloud</h1>
+        <p id="subtitle">Connecting to Adafruit IO</p>
+      </div>
+    </div>
+    <div class="status-row">
+      <button id="liveBtn" class="live on" type="button" aria-pressed="true">Live</button>
+      <span id="mqtt" class="pill">MQTT connecting</span>
+    </div>
+  </header>
+  <p id="banner" class="banner" hidden>Cannot reach the display board. Retrying.</p>
+  <noscript><p class="banner">Enable JavaScript to use the live dashboard.</p></noscript>
+  <main class="grid">
+    <section class="panel bme" aria-labelledby="bme-title">
+      <div class="panel-head">
+        <h2 id="bme-title">BME280</h2>
+        <span class="age" id="age-bme">no data yet</span>
+      </div>
+      <div class="metrics">
+        <button class="tile active" type="button" data-key="bme.temp">
+          <span class="tile-top"><span class="k">Temperature</span><span class="trend" id="trend-bme-temp"></span></span>
+          <span class="v"><span class="num" id="val-bme-temp">--</span><small>&deg;C</small></span>
+          <svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"><polyline id="spark-bme-temp"></polyline></svg>
+        </button>
+        <button class="tile" type="button" data-key="bme.pressure">
+          <span class="tile-top"><span class="k">Pressure</span><span class="trend" id="trend-bme-pressure"></span></span>
+          <span class="v"><span class="num" id="val-bme-pressure">--</span><small>hPa</small></span>
+          <svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"><polyline id="spark-bme-pressure"></polyline></svg>
+        </button>
+        <button class="tile wide" type="button" data-key="bme.humidity">
+          <span class="tile-top"><span class="k">Humidity</span><span class="trend" id="trend-bme-humidity"></span></span>
+          <span class="v"><span class="num" id="val-bme-humidity">--</span><small>%</small></span>
+          <div class="meter" aria-hidden="true"><span id="humFill"></span></div>
+          <span class="comfort" id="humLabel">Waiting for humidity</span>
+        </button>
+      </div>
+    </section>
+    <section class="panel bmp" aria-labelledby="bmp-title">
+      <div class="panel-head">
+        <h2 id="bmp-title">BMP180</h2>
+        <span class="age" id="age-bmp">no data yet</span>
+      </div>
+      <div class="metrics">
+        <button class="tile" type="button" data-key="bmp.temp">
+          <span class="tile-top"><span class="k">Temperature</span><span class="trend" id="trend-bmp-temp"></span></span>
+          <span class="v"><span class="num" id="val-bmp-temp">--</span><small>&deg;C</small></span>
+          <svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"><polyline id="spark-bmp-temp"></polyline></svg>
+        </button>
+        <button class="tile" type="button" data-key="bmp.pressure">
+          <span class="tile-top"><span class="k">Pressure</span><span class="trend" id="trend-bmp-pressure"></span></span>
+          <span class="v"><span class="num" id="val-bmp-pressure">--</span><small>hPa</small></span>
+          <svg class="spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"><polyline id="spark-bmp-pressure"></polyline></svg>
+        </button>
+      </div>
+      <p class="note">BMP180 reports temperature and pressure.</p>
+    </section>
+  </main>
+  <section class="deltas" aria-label="Comparison">
+    <article>
+      <span>Temperature gap</span>
+      <strong id="dTemp">--</strong>
+      <em>BME280 - BMP180</em>
+    </article>
+    <article>
+      <span>Pressure gap</span>
+      <strong id="dPress">--</strong>
+      <em>BME280 - BMP180</em>
+    </article>
+    <article>
+      <span>Recent samples</span>
+      <strong id="dCount">0</strong>
+      <em>Kept on this board</em>
+    </article>
+  </section>
+  <section class="detail" aria-labelledby="detailTitle">
+    <div class="detail-head">
+      <div>
+        <h2 id="detailTitle">BME280 temperature</h2>
+        <p id="detailMeta">Waiting for the first reading</p>
+      </div>
+      <strong id="detailValue">--</strong>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="chart"></canvas>
+      <div id="tip" hidden></div>
+    </div>
+    <p class="hint">Select a reading to chart it. Arrow keys move between readings. Move across the chart to inspect a point.</p>
+  </section>
+</div>
+<script>
+(function () {
+  var METRICS = [
+    { key: "bme.temp", id: "bme-temp", digits: 2, unit: "\u00B0C", title: "BME280 temperature", minSpan: 1 },
+    { key: "bme.pressure", id: "bme-pressure", digits: 1, unit: "hPa", title: "BME280 pressure", minSpan: 2 },
+    { key: "bme.humidity", id: "bme-humidity", digits: 1, unit: "%", title: "BME280 humidity", minSpan: 5 },
+    { key: "bmp.temp", id: "bmp-temp", digits: 2, unit: "\u00B0C", title: "BMP180 temperature", minSpan: 1 },
+    { key: "bmp.pressure", id: "bmp-pressure", digits: 1, unit: "hPa", title: "BMP180 pressure", minSpan: 2 }
+  ];
+  var COLORS = {
+    "bme.temp": "#2dd4bf",
+    "bme.pressure": "#38bdf8",
+    "bme.humidity": "#a78bfa",
+    "bmp.temp": "#fbbf24",
+    "bmp.pressure": "#fb7185"
+  };
+  var selected = "bme.temp";
+  var live = true;
+  var pollSec = 2;
+  var pollTimer = 0;
+  var hist = [];
+  var latest = {};
+  var ageBase = { bme: null, bmp: null, at: Date.now() };
+  var chartPts = [];
+  var chartDpr = 1;
+
+  try {
+    var saved = sessionStorage.getItem("sensor-cloud-sel");
+    if (saved && METRICS.some(function (m) { return m.key === saved; })) selected = saved;
+  } catch (e) {}
+
+  function num(v) {
+    if (typeof v === "number" && isFinite(v)) return v;
+    if (typeof v === "string" && v.trim() !== "") {
+      var n = Number(v);
+      if (isFinite(n)) return n;
+    }
+    return null;
+  }
+
+  function currentMetric() {
+    for (var i = 0; i < METRICS.length; i++) {
+      if (METRICS[i].key === selected) return METRICS[i];
+    }
+    return METRICS[0];
+  }
+
+  function read(sample, key) {
+    var parts = key.split(".");
+    var node = sample[parts[0]];
+    if (!node) return null;
+    return num(node[parts[1]]);
+  }
+
+  function series(key) {
+    var vals = [];
+    hist.forEach(function (sample) {
+      var v = read(sample, key);
+      if (v != null) vals.push(v);
+    });
+    var liveV = num(latest[key]);
+    if (liveV != null && (vals.length === 0 || vals[vals.length - 1] !== liveV)) vals.push(liveV);
+    return vals;
+  }
+
+  function setVal(id, text, extra) {
+    var el = document.getElementById("val-" + id);
+    if (!el) return;
+    var changed = el.textContent !== text;
+    el.textContent = text;
+    el.className = "num" + (extra || "");
+    if (changed && text !== "--") {
+      void el.offsetWidth;
+      el.classList.add("tick");
+    }
+  }
+
+  function ageText(base) {
+    if (base == null) return "no data yet";
+    var s = Math.max(0, base + Math.round((Date.now() - ageBase.at) / 1000));
+    if (s < 5) return "just now";
+    if (s < 60) return s + "s ago";
+    var m = Math.floor(s / 60);
+    return m + " min ago";
+  }
+
+  function paintAges() {
+    document.getElementById("age-bme").textContent = ageText(ageBase.bme);
+    document.getElementById("age-bmp").textContent = ageText(ageBase.bmp);
+  }
+
+  function gap(a, b, digits, unit) {
+    if (a == null || b == null) return "--";
+    var d = a - b;
+    var sign = d > 0 ? "+" : "";
+    return sign + d.toFixed(digits) + " " + unit;
+  }
+
+  function comfort(h) {
+    if (h == null) return "Waiting for humidity";
+    if (h < 30) return "Dry air";
+    if (h > 60) return "Humid air";
+    return "Comfortable";
+  }
+
+  function tempExtra(v) {
+    if (v == null) return "";
+    if (v < 18) return " cool";
+    if (v > 27) return " warm";
+    return "";
+  }
+
+  function paintSpark(metric) {
+    var line = document.getElementById("spark-" + metric.id);
+    if (!line) return;
+    var vals = series(metric.key);
+    if (vals.length < 2) {
+      line.setAttribute("points", "");
+      return;
+    }
+    var min = Math.min.apply(null, vals);
+    var max = Math.max.apply(null, vals);
+    var span = (max - min) || 1;
+    var pts = vals.map(function (v, i) {
+      var x = (i / (vals.length - 1)) * 100;
+      var y = 26 - ((v - min) / span) * 22;
+      return x.toFixed(1) + "," + y.toFixed(1);
+    }).join(" ");
+    line.setAttribute("points", pts);
+  }
+
+  function paintTrend(metric) {
+    var el = document.getElementById("trend-" + metric.id);
+    if (!el) return;
+    var vals = series(metric.key);
+    if (vals.length < 2) {
+      el.textContent = "";
+      el.className = "trend";
+      return;
+    }
+    var d = vals[vals.length - 1] - vals[vals.length - 2];
+    var eps = metric.key.indexOf("pressure") >= 0 ? 0.15 : 0.03;
+    var kind = "flat";
+    var glyph = "\u25CF";
+    if (d > eps) { kind = "up"; glyph = "\u25B2"; }
+    else if (d < -eps) { kind = "down"; glyph = "\u25BC"; }
+    el.textContent = glyph;
+    el.className = "trend " + kind;
+  }
+
+  function hexAlpha(hex, alpha) {
+    var n = parseInt(hex.slice(1), 16);
+    return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + alpha + ")";
+  }
+
+  function pointsFor(metric) {
+    var pts = [];
+    hist.forEach(function (sample) {
+      var v = read(sample, metric.key);
+      if (v != null) pts.push({ ts: sample.ts, v: v });
+    });
+    var liveV = num(latest[metric.key]);
+    var stale = pts.length === 0 || (Date.now() - pts[pts.length - 1].ts) > 1000;
+    if (liveV != null && (pts.length === 0 || stale || pts[pts.length - 1].v !== liveV)) {
+      pts.push({ ts: Date.now(), v: liveV });
+    }
+    return pts;
+  }
+
+  function draw() {
+    var canvas = document.getElementById("chart");
+    var metric = currentMetric();
+    var ctx = canvas.getContext("2d");
+    var dpr = window.devicePixelRatio || 1;
+    chartDpr = dpr;
+    var rect = canvas.getBoundingClientRect();
+    var cssW = Math.max(1, rect.width);
+    var cssH = Math.max(1, rect.height);
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    var w = canvas.width;
+    var h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    var pts = pointsFor(metric);
+    var last = num(latest[metric.key]);
+    if (last == null && pts.length) last = pts[pts.length - 1].v;
+    document.getElementById("detailTitle").textContent = metric.title;
+    document.getElementById("detailValue").textContent = last == null ? "--" : last.toFixed(metric.digits) + " " + metric.unit;
+    document.getElementById("detailValue").style.color = COLORS[metric.key];
+
+    if (!pts.length) {
+      chartPts = [];
+      document.getElementById("detailMeta").textContent = "Waiting for the first reading";
+      ctx.fillStyle = "#93a4bd";
+      ctx.font = (14 * dpr) + "px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Waiting for readings", w / 2, h / 2);
+      return;
+    }
+
+    var min = pts[0].v;
+    var max = pts[0].v;
+    pts.forEach(function (p) {
+      if (p.v < min) min = p.v;
+      if (p.v > max) max = p.v;
+    });
+    var mid = (min + max) / 2;
+    var span = Math.max(max - min, metric.minSpan);
+    min = mid - span / 2;
+    max = mid + span / 2;
+    document.getElementById("detailMeta").textContent =
+      pts.length + " samples  \u00B7  low " + minWait(pts, metric) + "  \u00B7  high " + maxWait(pts, metric);
+
+    var padL = 52 * dpr;
+    var padR = 12 * dpr;
+    var padT = 16 * dpr;
+    var padB = 18 * dpr;
+    var plotW = w - padL - padR;
+    var plotH = h - padT - padB;
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.fillStyle = "#93a4bd";
+    ctx.font = (11 * dpr) + "px sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    for (var i = 0; i < 4; i++) {
+      var y = padT + plotH * i / 3;
+      var val = max - (max - min) * i / 3;
+      ctx.beginPath();
+      ctx.moveTo(padL, y);
+      ctx.lineTo(w - padR, y);
+      ctx.stroke();
+      ctx.fillText(val.toFixed(metric.digits), padL - 8 * dpr, y);
+    }
+
+    var t0 = pts[0].ts;
+    var t1 = pts[pts.length - 1].ts;
+    var tSpan = Math.max(1, t1 - t0);
+    chartPts = pts.map(function (p) {
+      return {
+        x: padL + ((p.ts - t0) / tSpan) * plotW,
+        y: padT + (1 - (p.v - min) / (max - min)) * plotH,
+        v: p.v,
+        ts: p.ts
+      };
+    });
+    if (chartPts.length === 1) chartPts[0].x = padL + plotW / 2;
+
+    var color = COLORS[metric.key];
+    ctx.beginPath();
+    chartPts.forEach(function (p, idx) {
+      if (idx === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.lineTo(chartPts[chartPts.length - 1].x, padT + plotH);
+    ctx.lineTo(chartPts[0].x, padT + plotH);
+    ctx.closePath();
+    ctx.fillStyle = hexAlpha(color, 0.18);
+    ctx.fill();
+
+    ctx.beginPath();
+    chartPts.forEach(function (p, idx) {
+      if (idx === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2 * dpr;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.stroke();
+
+    var end = chartPts[chartPts.length - 1];
+    ctx.beginPath();
+    ctx.arc(end.x, end.y, 3.5 * dpr, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  function minWait(pts, metric) {
+    var v = pts[0].v;
+    pts.forEach(function (p) { if (p.v < v) v = p.v; });
+    return v.toFixed(metric.digits) + " " + metric.unit;
+  }
+
+  function maxWait(pts, metric) {
+    var v = pts[0].v;
+    pts.forEach(function (p) { if (p.v > v) v = p.v; });
+    return v.toFixed(metric.digits) + " " + metric.unit;
+  }
+
+  function select(key) {
+    if (!METRICS.some(function (m) { return m.key === key; })) return;
+    selected = key;
+    document.querySelectorAll(".tile").forEach(function (btn) {
+      btn.classList.toggle("active", btn.getAttribute("data-key") === key);
+    });
+    try { sessionStorage.setItem("sensor-cloud-sel", key); } catch (e) {}
+    document.getElementById("tip").hidden = true;
+    draw();
+  }
+
+  function apply(data) {
+    if (typeof data.poll === "number" && data.poll >= 1 && data.poll <= 60) pollSec = data.poll;
+    var bme = data.bme || {};
+    var bmp = data.bmp || {};
+    ageBase = { bme: num(bme.age), bmp: num(bmp.age), at: Date.now() };
+    latest = {
+      "bme.temp": num(bme.temp),
+      "bme.pressure": num(bme.pressure),
+      "bme.humidity": num(bme.humidity),
+      "bmp.temp": num(bmp.temp),
+      "bmp.pressure": num(bmp.pressure)
+    };
+    if (Array.isArray(data.hist)) {
+      var now = Date.now();
+      hist = data.hist.map(function (p) {
+        return {
+          ts: now - (num(p.a) || 0) * 1000,
+          bme: { temp: num(p.t), pressure: num(p.p), humidity: num(p.h) },
+          bmp: { temp: num(p.T), pressure: num(p.P), humidity: null }
+        };
+      });
+    }
+
+    METRICS.forEach(function (metric) {
+      var value = latest[metric.key];
+      var text = value == null ? "--" : value.toFixed(metric.digits);
+      var extra = metric.key.indexOf("temp") >= 0 ? tempExtra(value) : "";
+      setVal(metric.id, text, extra);
+      paintSpark(metric);
+      paintTrend(metric);
+    });
+
+    var humidity = latest["bme.humidity"];
+    document.getElementById("humFill").style.width =
+      (humidity == null ? 0 : Math.max(0, Math.min(100, humidity))) + "%";
+    document.getElementById("humLabel").textContent = comfort(humidity);
+    document.getElementById("dTemp").textContent = gap(latest["bme.temp"], latest["bmp.temp"], 2, "\u00B0C");
+    document.getElementById("dPress").textContent = gap(latest["bme.pressure"], latest["bmp.pressure"], 1, "hPa");
+    document.getElementById("dCount").textContent = String(hist.length);
+
+    var pill = document.getElementById("mqtt");
+    if (data.mqtt) {
+      pill.textContent = "MQTT connected";
+      pill.className = "pill ok";
+    } else {
+      pill.textContent = "MQTT disconnected";
+      pill.className = "pill bad";
+    }
+
+    var subtitle = document.getElementById("subtitle");
+    if (!live) subtitle.textContent = "Updates paused";
+    else if (!data.mqtt) subtitle.textContent = "Adafruit IO link is down. Last values stay on screen.";
+    else if (ageBase.bme == null && ageBase.bmp == null) subtitle.textContent = "Connected. Waiting for sensor feeds.";
+    else subtitle.textContent = "Live from Adafruit IO";
+
+    paintAges();
+    draw();
+  }
+
+  function onPointer(ev) {
+    var tip = document.getElementById("tip");
+    if (!chartPts.length) {
+      tip.hidden = true;
+      return;
+    }
+    var x = ev.offsetX * chartDpr;
+    var best = chartPts[0];
+    var bestD = Infinity;
+    chartPts.forEach(function (p) {
+      var d = Math.abs(p.x - x);
+      if (d < bestD) { best = p; bestD = d; }
+    });
+    var metric = currentMetric();
+    var when = new Date(best.ts);
+    function pad(n) { return (n < 10 ? "0" : "") + n; }
+    tip.hidden = false;
+    tip.textContent = best.v.toFixed(metric.digits) + " " + metric.unit +
+      "  " + pad(when.getHours()) + ":" + pad(when.getMinutes()) + ":" + pad(when.getSeconds());
+    var width = ev.currentTarget.getBoundingClientRect().width;
+    tip.style.left = Math.max(48, Math.min(width - 48, ev.offsetX)) + "px";
+    tip.style.top = Math.max(28, ev.offsetY) + "px";
+  }
+
+  function arm() {
+    clearTimeout(pollTimer);
+    if (!live) return;
+    pollTimer = setTimeout(function () { poll().then(arm); }, pollSec * 1000);
+  }
+
+  function poll() {
+    return fetch("/api/status", { cache: "no-store" }).then(function (res) {
+      if (!res.ok) throw new Error("status");
+      return res.json();
+    }).then(function (data) {
+      document.getElementById("banner").hidden = true;
+      apply(data);
+    }).catch(function () {
+      var banner = document.getElementById("banner");
+      banner.hidden = false;
+      banner.textContent = "Cannot reach the display board. Retrying.";
+    });
+  }
+
+  function toggleLive() {
+    live = !live;
+    var btn = document.getElementById("liveBtn");
+    btn.classList.toggle("on", live);
+    btn.setAttribute("aria-pressed", live ? "true" : "false");
+    btn.textContent = live ? "Live" : "Paused";
+    if (live) poll().then(arm);
+    else {
+      clearTimeout(pollTimer);
+      document.getElementById("subtitle").textContent = "Updates paused";
+    }
+  }
+
+  function onKey(e) {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault();
+    var i = 0;
+    for (var n = 0; n < METRICS.length; n++) {
+      if (METRICS[n].key === selected) i = n;
+    }
+    var dir = e.key === "ArrowRight" ? 1 : -1;
+    var j = (i + dir + METRICS.length) % METRICS.length;
+    select(METRICS[j].key);
+    var btn = document.querySelector('.tile[data-key="' + METRICS[j].key + '"]');
+    if (btn) btn.focus();
+  }
+
+  document.querySelectorAll(".tile").forEach(function (btn) {
+    btn.addEventListener("click", function () { select(btn.getAttribute("data-key")); });
+  });
+  document.getElementById("liveBtn").addEventListener("click", toggleLive);
+  document.addEventListener("keydown", onKey);
+  var canvas = document.getElementById("chart");
+  canvas.addEventListener("pointermove", onPointer);
+  canvas.addEventListener("pointerdown", onPointer);
+  canvas.addEventListener("pointerleave", function () {
+    document.getElementById("tip").hidden = true;
+  });
+  window.addEventListener("resize", draw);
+  select(selected);
+  setInterval(paintAges, 1000);
+  requestAnimationFrame(draw);
+  poll().then(arm);
+})();
+</script>
+</body>
+</html>
